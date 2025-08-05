@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "479297142854",
+    "firebase_url": "https://ldrluz-default-rtdb.firebaseio.com",
+    "project_id": "ldrluz",
+    "storage_bucket": "ldrluz.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:479297142854:android:f06fd9bfab8947c70b0a47",
+        "android_client_info": {
+          "package_name": "com.example.myapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAhJaoYNlDhoy-Ki7bJ_EziaURhygQJiP0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

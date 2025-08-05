@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'firebase_options.dart';
 
-void main() {
+import 'dart:async';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializa Firebase usando firebase_options.dart
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const MyApp());
 }
 
@@ -10,7 +22,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Control Remoto',
+      title: 'Control Automático',
       theme: ThemeData.dark().copyWith(
         colorScheme: ColorScheme.dark(
           primary: const Color.fromARGB(255, 7, 255, 251),
@@ -32,10 +44,38 @@ class LumiControlHomePage extends StatefulWidget {
 }
 
 class _LumiControlHomePageState extends State<LumiControlHomePage> {
-  bool isLightOn = true;
-  bool isManualMode = true;
-  double intensity = 47.0;
-  double ambientLight = 56.0;
+  double ambientLightIntensity = 0.0;
+
+  late final DatabaseReference dbRef;
+
+  /// Tiempo entre actualizaciones (en minutos)
+  final int fetchIntervalMinutes = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    dbRef = FirebaseDatabase.instance.ref();
+    _fetchData();
+    _schedulePeriodicUpdates();
+  }
+
+  void _schedulePeriodicUpdates() {
+    Timer.periodic(Duration(minutes: fetchIntervalMinutes), (timer) {
+      _fetchData();
+    });
+  }
+
+  Future<void> _fetchData() async {
+    final snapshot = await dbRef.child('lumiControl/ambientLight').get();
+
+    if (snapshot.exists) {
+      setState(() {
+        ambientLightIntensity = (snapshot.value as num).toDouble();
+      });
+    } else {
+      debugPrint('No se encontraron datos en /lumiControl/ambientLight');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +83,7 @@ class _LumiControlHomePageState extends State<LumiControlHomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Control Remoto'),
+        title: const Text('Control Automático'),
         centerTitle: true,
       ),
       body: Center(
@@ -65,106 +105,25 @@ class _LumiControlHomePageState extends State<LumiControlHomePage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 20),
-              Text('Control Remoto',
-                  style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary)),
-              const SizedBox(height: 4),
-              Text('Control de Iluminación Inteligente',
-                  style: TextStyle(
-                      fontSize: 14, color: theme.colorScheme.onSurface)),
-              const SizedBox(height: 20),
-              IconButton(
-                iconSize: 72,
-                color: Colors.white,
-                icon: Icon(isLightOn ? Icons.wb_sunny : Icons.lightbulb_outline),
-                style: isLightOn ?
-                  IconButton.styleFrom(
-                  backgroundColor: theme.colorScheme.primary,
-                  elevation: 10,
-                  shape: const CircleBorder(),
-                  ) :
-                  IconButton.styleFrom(
-                  backgroundColor: theme.colorScheme.tertiary,
-                  elevation: 10,
-                  shape: const CircleBorder(),),
-                onPressed: () {
-                  setState(() {
-                    isLightOn = !isLightOn;
-                  });
-                },
-              ),
               Text(
-                isLightOn ? 'Encendido' : 'Apagado',
+                'Control Automático',
                 style: TextStyle(
-                  fontSize: 18,
-                  color: theme.colorScheme.onBackground,
-                ),
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary),
               ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.handshake),
-                        Switch(
-                          value: isManualMode,
-                          onChanged: (value) {
-                            setState(() {
-                              isManualMode = value;
-                            });
-                          },
-                          activeColor: theme.colorScheme.primary,
-                        ),
-                        const Icon(Icons.auto_mode_outlined),
-                      ],
-                    ),
-                    Text('Modo: ${isManualMode ? 'Manual' : 'Automático'}'),
-                  ],
-                ),
+              const SizedBox(height: 4),
+              Text(
+                'Control de Iluminación Inteligente',
+                style: TextStyle(
+                    fontSize: 14, color: theme.colorScheme.onSurface),
               ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Intensidad',
-                            style: TextStyle(
-                                fontSize: 14,
-                                color: theme.colorScheme.onSurface)),
-                        Text('${intensity.round()}%',
-                            style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: theme.colorScheme.primary)),
-                      ],
-                    ),
-                    Slider(
-                      value: intensity,
-                      min: 0,
-                      max: 100,
-                      divisions: 100,
-                      label: '${intensity.round()}%',
-                      onChanged: (value) {
-                        setState(() {
-                          intensity = value;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 30),
+
+              // Luz ambiente actual
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                margin:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
@@ -175,19 +134,23 @@ class _LumiControlHomePageState extends State<LumiControlHomePage> {
                     Text(
                       'Luz Ambiente Actual',
                       style: TextStyle(
-                          fontSize: 14,
-                          color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                        fontSize: 14,
+                        color:
+                            theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
                     ),
                     Text(
-                      '${ambientLight.round()}%',
+                      '${ambientLightIntensity.round()}%',
                       style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.primary),
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
                   ],
                 ),
               ),
+
               const SizedBox(height: 24),
             ],
           ),
