@@ -45,7 +45,12 @@ class _LumiControlHomePageState extends State<LumiControlHomePage> {
   double ambientLightIntensity = 0.0;
   late final DatabaseReference dbRef;
 
-  final int fetchIntervalMinutes = 1;
+  final int fetchIntervalMillis = 5000; // 5 segundos en milisegundos
+
+  // Calibración real del sensor
+  final double minSensorValue = 2250;   // mínima lectura
+  final double maxSensorValue = 4000;   // máxima lectura
+  final double umbralEncendido = 3950;  // umbral para encender
 
   @override
   void initState() {
@@ -56,7 +61,7 @@ class _LumiControlHomePageState extends State<LumiControlHomePage> {
   }
 
   void _schedulePeriodicUpdates() {
-    Timer.periodic(Duration(minutes: fetchIntervalMinutes), (timer) {
+    Timer.periodic(Duration(milliseconds: fetchIntervalMillis), (timer) {
       _fetchData();
     });
   }
@@ -77,13 +82,20 @@ class _LumiControlHomePageState extends State<LumiControlHomePage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final double luzExterior = (350 - ambientLightIntensity).clamp(0, 350);
+    // Luz exterior calculada con rango real del sensor
+    final double luzExterior = ((maxSensorValue - ambientLightIntensity) /
+            (maxSensorValue - minSensorValue) *
+            maxSensorValue)
+        .clamp(0, maxSensorValue);
 
-    final double porcentajeFoco = (ambientLightIntensity > 200)
-        ? ((ambientLightIntensity - 200) / 150 * 100).clamp(0, 100)
+    // Cálculo del porcentaje de encendido
+    final double porcentajeFoco = (luzExterior < umbralEncendido)
+        ? ((umbralEncendido - luzExterior) / umbralEncendido * 100)
+            .clamp(0, 100) // Limitar entre 0 y 100
         : 0;
 
-    final bool focoEncendido = porcentajeFoco > 0;
+    // Estado del foco
+    final bool focoEncendido = porcentajeFoco > 0;;
 
     return Scaffold(
       appBar: AppBar(
@@ -128,6 +140,7 @@ class _LumiControlHomePageState extends State<LumiControlHomePage> {
               ),
               const SizedBox(height: 30),
 
+              // Tarjeta de luz exterior
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -156,7 +169,7 @@ class _LumiControlHomePageState extends State<LumiControlHomePage> {
                       ),
                     ),
                     Text(
-                      'de 350',
+                      'de $maxSensorValue',
                       style: TextStyle(
                         fontSize: 14,
                         color: theme.colorScheme.tertiary,
@@ -166,6 +179,7 @@ class _LumiControlHomePageState extends State<LumiControlHomePage> {
                 ),
               ),
 
+              // Tarjeta de intensidad del foco
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -175,9 +189,8 @@ class _LumiControlHomePageState extends State<LumiControlHomePage> {
                       : Colors.grey.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: focoEncendido
-                        ? Colors.cyanAccent
-                        : Colors.white10,
+                    color:
+                        focoEncendido ? Colors.cyanAccent : Colors.white10,
                   ),
                 ),
                 child: Column(
